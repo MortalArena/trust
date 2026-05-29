@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Niche Trust - Live Prediction Market Terminal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .glow { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
+    .animate-pulse-slow { animation: pulse 3s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  </style>
+</head>
+<body class="min-h-screen bg-[#0a0a0a] text-white">
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-[#0a0a0a] px-4 py-3">
+    <div class="mx-auto flex max-w-7xl items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold">NT</span>
+        <span class="text-lg font-semibold">Niche Trust Terminal</span>
+      </div>
+      <nav class="flex gap-4 text-sm">
+        <a href="/leaderboard" class="text-slate-400 hover:text-white">Leaderboard</a>
+        <a href="/groups" class="text-slate-400 hover:text-white">Groups</a>
+        <a href="/bots" class="text-slate-400 hover:text-white">Marketplace</a>
+        <a href="/platforms" class="text-slate-400 hover:text-white">Platforms</a>
+        <a href="/learn" class="text-slate-400 hover:text-white">Learn</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-4 py-6">
+    <!-- Hero -->
+    <section class="mb-8 text-center">
+      <h1 class="mb-2 text-2xl font-bold text-white md:text-3xl">
+        🔮 Live Prediction Market Flow Terminal
+      </h1>
+      <p class="text-slate-400">Real-time predictions + smart trader rankings</p>
+    </section>
+
+    <!-- Live Markets Grid - Simulated -->
+    <section class="mb-12">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-bold text-white">📊 LIVE MARKETS</h2>
+        <span class="text-xs text-slate-400">Auto-refresh every 60s</span>
+      </div>
+      <div id="markets-grid" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <!-- Markets will load here -->
+      </div>
+    </section>
+
+    <!-- 5 Platform Sections -->
+    <section class="mb-12">
+      <h2 class="mb-4 text-sm font-semibold uppercase text-slate-400">Platform Sections</h2>
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <a href="/leaderboard" class="rounded-xl border border-slate-700 bg-slate-900 p-4 hover:border-blue-500">
+          <div class="mb-2 text-2xl">📊</div>
+          <h3 class="font-semibold text-white">Leaderboard</h3>
+          <p class="text-sm text-slate-400">Edge Score • Trust scores • Live every 5 min</p>
+        </a>
+        <a href="/groups" class="rounded-xl border border-slate-700 bg-slate-900 p-4 hover:border-blue-500">
+          <div class="mb-2 text-2xl">👥</div>
+          <h3 class="font-semibold text-white">Groups</h3>
+          <p class="text-sm text-slate-400">Paid expert groups • Encrypted chat</p>
+        </a>
+        <a href="/bots" class="rounded-xl border border-slate-700 bg-slate-900 p-4 hover:border-blue-500">
+          <div class="mb-2 text-2xl">🏪</div>
+          <h3 class="font-semibold text-white">Marketplace</h3>
+          <p class="text-sm text-slate-400">Expert bots • Trading tools</p>
+        </a>
+        <a href="/platforms" class="rounded-xl border border-slate-700 bg-slate-900 p-4 hover:border-blue-500">
+          <div class="mb-2 text-2xl">🌐</div>
+          <h3 class="font-semibold text-white">Platforms</h3>
+          <p class="text-sm text-slate-400">Polymarket • Kalshi • Manifold</p>
+        </a>
+        <a href="/learn" class="rounded-xl border border-slate-700 bg-slate-900 p-4 hover:border-blue-500">
+          <div class="mb-2 text-2xl">📖</div>
+          <h3 class="font-semibold text-white">Learn</h3>
+          <p class="text-sm text-slate-400">API docs • Integration guides</p>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Simulated live markets - will be replaced by real API
+    const sampleMarkets = [
+      { q: 'Trump wins 2024 election', yes: 58, no: 42, vol: 5.2, hot: true, mom: 'Bullish' },
+      { q: 'Ethereum ETF approval', yes: 72, no: 28, vol: 3.8, hot: true, mom: 'Bullish' },
+      { q: 'Bitcoin above $100k by Dec', yes: 35, no: 65, vol: 2.1, mom: 'Bearish' },
+      { q: 'Nvidia Q3 earnings beat', yes: 68, no: 32, vol: 1.5, mom: 'Bullish' },
+      { q: 'Fed rate cut September', yes: 45, no: 55, vol: 1.8, mom: 'Neutral' },
+      { q: 'Climate deal at COP29', yes: 22, no: 78, vol: 0.8, mom: 'Bearish' },
+    ];
+
+    function renderMarkets() {
+      const grid = document.getElementById('markets-grid');
+      grid.innerHTML = sampleMarkets.map(m => `
+        <div class="rounded-xl border border-slate-700 bg-slate-900 p-3">
+          <div class="mb-2 flex items-start justify-between gap-1">
+            <span class="line-clamp-2 text-sm font-medium text-white">${m.q}</span>
+            <span class="rounded px-1 text-[10px] font-bold ${m.hot ? 'bg-red-500 text-white' : 'bg-slate-600 text-slate-300'}">
+              ${m.hot ? 'HOT' : 'WARM'}
+            </span>
+          </div>
+          <div class="grid grid-cols-2 gap-1">
+            <div class="rounded bg-slate-800 p-1.5">
+              <span class="text-[10px] text-slate-400">YES</span>
+              <p class="text-sm font-bold text-emerald-400">${m.yes}%</p>
+            </div>
+            <div class="rounded bg-slate-800 p-1.5">
+              <span class="text-[10px] text-slate-400">NO</span>
+              <p class="text-sm font-bold text-red-400">${m.no}%</p>
+            </div>
+          </div>
+          <div class="mt-2 flex justify-between text-[10px] text-slate-400">
+            <span>24h: $${m.vol}M</span>
+            <span>${m.mom}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    renderMarkets();
+    setInterval(renderMarkets, 30000);
+  </script>
+</body>
+</html>
