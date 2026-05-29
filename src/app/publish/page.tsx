@@ -77,7 +77,7 @@ export default function PublishPage() {
       });
 
       // Compute SHA-256 hash using built-in Web Crypto API
-      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(predictionText));
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(predictionText) as any);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const contentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
