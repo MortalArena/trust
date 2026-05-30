@@ -135,7 +135,7 @@ export async function syncPolymarketTrader(
       totalVolumeUsd,
       timingScore,
       categories: mergedCategoriesList,
-      polymarketUrl: `${POLYMARKET_SITE}/profile/${queryAddress}`,
+      polymarketUrl: `${POLYMARKET_SITE.site}/profile/${queryAddress}`,
     };
 
     await prisma.polymarketTrader.upsert({
