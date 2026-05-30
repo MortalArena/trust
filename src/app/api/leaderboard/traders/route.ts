@@ -14,7 +14,7 @@ import { MARKET_CATEGORIES } from '@/lib/markets/categories';
  *   minTrades  - Minimum trades required (default: 0)
  *   limit      - Max results per page (default: 50, max: 200)
  *   page       - Page number (default: 1)
- *   sortBy     - Sort field: edgeScore | trustScore | roi | winRate | consistency | totalVolumeUsd | totalTrades
+ *   sortBy     - Sort field: edgeScore | trustScore | roi | winRate | consistency | totalVolumeUsd | totalTrades | profitFactor | maxDrawdown
  */
 export async function GET(req: NextRequest) {
   try {
@@ -33,12 +33,17 @@ export async function GET(req: NextRequest) {
       | 'winRate'
       | 'consistency'
       | 'totalVolumeUsd'
-      | 'totalTrades';
+      | 'totalTrades'
+      | 'profitFactor'
+      | 'maxDrawdown';
 
     // Parse multi-categories from comma-separated string
-    const categories = categoriesParam
+    const parsedCategories = categoriesParam
       ? categoriesParam.split(',').map((c) => c.trim()).filter(Boolean)
       : undefined;
+
+    // Merge single category into categories array
+    const categories = parsedCategories ?? (categorySlug ? [categorySlug] : undefined);
 
     // Validate categories if provided
     const validSlugs = new Set(MARKET_CATEGORIES.map((c) => c.slug));
@@ -60,7 +65,6 @@ export async function GET(req: NextRequest) {
     }
 
     const result = await getLeaderboard({
-      categorySlug,
       categories,
       search,
       minTrades,

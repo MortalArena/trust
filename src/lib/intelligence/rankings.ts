@@ -1,13 +1,16 @@
-import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import type { LeaderboardEntry } from '@/lib/polymarket/leaderboard';
 import type { RankingBoardId } from './edge-score';
 
-function asJsonPayload(entries: LeaderboardEntry[]): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(entries)) as Prisma.InputJsonValue;
+function asJsonPayload(entries: LeaderboardEntry[]): object {
+  return JSON.parse(JSON.stringify(entries));
 }
 
-async function topTraders(where: Record<string, unknown>, orderBy: Record<string, 'desc'>, limit: number) {
+async function topTraders(
+  where: Record<string, unknown>,
+  orderBy: Record<string, 'desc' | 'asc'>,
+  limit: number
+): Promise<LeaderboardEntry[]> {
   const rows = await prisma.polymarketTrader.findMany({
     where: { totalTrades: { gte: 5 }, ...where },
     orderBy,
@@ -37,61 +40,50 @@ async function topTraders(where: Record<string, unknown>, orderBy: Record<string
       timingScore: Number(t.timingScore),
       categories: t.categories,
       polymarketUrl: `https://polymarket.com/profile/${t.proxyWallet}`,
+      lastSyncedAt: t.lastSyncedAt.toISOString(),
     },
   }));
 }
 
-/** Recompute all ranking boards and store in IntelligenceRanking */
+/** Recompute all ranking boards and cache in IntelligenceRanking */
 export async function refreshPrecomputedRankings(): Promise<Record<string, number>> {
-  const boards: { board: RankingBoardId; categorySlug: string | null; fetch: () => Promise<LeaderboardEntry[]> }[] = [
-    {
-      board: 'top_edge',
-      categorySlug: null,
-      fetch: () => topTraders({}, { edgeScore: 'desc' }, 100),
-    },
-    {
-      board: 'highest_roi_30d',
-      categorySlug: null,
-      fetch: () => topTraders({}, { roi: 'desc' }, 100),
-    },
-    {
-      board: 'best_win_rate',
-      categorySlug: null,
-      fetch: () => topTraders({ totalTrades: { gte: 20 } }, { winRate: 'desc' }, 100),
-    },
-    {
-      board: 'most_consistent',
-      categorySlug: null,
-      fetch: () => topTraders({}, { consistency: 'desc' }, 100),
-    },
-    {
-      board: 'smart_money_volume',
-      categorySlug: null,
-      fetch: () => topTraders({}, { totalVolumeUsd: 'desc' }, 100),
-    },
+  const boards: { board: RankingBoardId; where?: Record<string, unknown>; orderBy: Record<string, 'desc' | 'asc'> }[] = [
+    { board: 'top_edge', orderBy: { edgeScore: 'desc' } },
+    { board: 'highest_roi_30d', orderBy: { roi: 'desc' } },
+    { board: 'best_win_rate', where: { totalTrades: { gte: 20 } }, orderBy: { winRate: 'desc' } },
+    { board: 'most_consistent', orderBy: { consistency: 'desc' } },
+    { board: 'smart_money_volume', orderBy: { totalVolumeUsd: 'desc' } },
+    { board: 'top_trust', orderBy: { trustScore: 'desc' } },
+    { board: 'best_profit_factor', where: { totalTrades: { gte: 10 } }, orderBy: { profitFactor: 'desc' } },
+    { board: 'lowest_risk', where: { totalTrades: { gte: 10 }, roi: { gt: 0 } }, orderBy: { maxDrawdown: 'asc' } },
   ];
 
   const counts: Record<string, number> = {};
 
-  for (const { board, categorySlug, fetch } of boards) {
-    const entries = await fetch();
-    await prisma.intelligenceRanking.upsert({
-      where: {
-        board_categorySlug: { board, categorySlug: categorySlug ?? '' },
-      },
-      update: {
-        payload: asJsonPayload(entries),
-        traderCount: entries.length,
-        computedAt: new Date(),
-      },
-      create: {
-        board,
-        categorySlug: categorySlug ?? '',
-        payload: asJsonPayload(entries),
-        traderCount: entries.length,
-      },
-    });
-    counts[board] = entries.length;
+  for (const { board, where = {}, orderBy } of boards) {
+    try {
+      const entries = await topTraders(where, orderBy, 100);
+      await prisma.intelligenceRanking.upsert({
+        where: {
+          board_categorySlug: { board, categorySlug: '' },
+        },
+        update: {
+          payload: asJsonPayload(entries),
+          traderCount: entries.length,
+          computedAt: new Date(),
+        },
+        create: {
+          board,
+          categorySlug: '',
+          payload: asJsonPayload(entries),
+          traderCount: entries.length,
+        },
+      });
+      counts[board] = entries.length;
+    } catch (error) {
+      console.error(`Failed to refresh board ${board}:`, error);
+      counts[board] = 0;
+    }
   }
 
   return counts;
