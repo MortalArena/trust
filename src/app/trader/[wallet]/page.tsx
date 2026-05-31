@@ -57,6 +57,21 @@ interface TraderProfile {
   profitFactor: number;
   riskLevel: string;
   timingScore: number;
+  // V2 Reputation Engine scores
+  v2Scores: {
+    predictiveScore: number;
+    alphaScore: number;
+    confidenceScore: number;
+    behaviorScore: number;
+    riskScore: number;
+    masterPMI: number;
+    forecastBrier: number;
+    forecastLogLoss: number;
+    forecastCalibration: number;
+    alpha24h: number;
+    alpha7d: number;
+    sectorAlpha: number;
+  };
   totalTrades: number;
   activityDays: number;
   avgTradeSize: number;
@@ -90,6 +105,15 @@ interface TraderProfile {
       roiComponent: number;
       tradesComponent: number;
       formula: string;
+    };
+    // V2 Reputation Engine breakdown
+    v2Breakdown: {
+      predictive: { weight: number; score: number; contribution: number };
+      alpha: { weight: number; score: number; contribution: number };
+      risk: { weight: number; score: number; contribution: number };
+      behavior: { weight: number; score: number; contribution: number };
+      confidence: { weight: number; score: number; contribution: number };
+      pmiFormula: string;
     };
   };
   recentTrades: TradeRecord[];
@@ -492,9 +516,96 @@ export default function TraderProfilePageClient() {
             </div>
           </div>
 
-        </div>
+          {/* V2 Reputation Engine Scores 🚀 */}
+          {trader.v2Scores && trader.v2Scores.masterPMI > 0 && (
+            <>
+              {/* Master PMI 🎯 */}
+              <div className="rounded-2xl border border-violet-800/50 bg-zinc-950 p-6 flex flex-col justify-between relative overflow-hidden group hover:border-violet-700/50 transition">
+                <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-violet-500/5 blur-xl pointer-events-none" />
+                <div>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Master PMI</h3>
+                      <p className="text-xs text-zinc-500 font-mono mt-0.5">V2 Reputation Engine</p>
+                    </div>
+                    <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-xs font-semibold text-violet-400 border border-violet-500/20">🚀 V2</span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-4">
+                    <span className="text-4xl font-extrabold text-violet-400 tracking-tight">{trader.v2Scores.masterPMI.toFixed(1)}</span>
+                    <span className="text-zinc-500 text-sm font-mono">/100</span>
+                  </div>
+                </div>
+                <div className="mt-5 pt-3 border-t border-zinc-900 space-y-2">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-zinc-400">
+                    <div className="flex justify-between"><span>Predictive:</span><span className="font-mono text-zinc-300">{trader.v2Scores.predictiveScore.toFixed(1)}</span></div>
+                    <div className="flex justify-between"><span>Alpha:</span><span className="font-mono text-zinc-300">{trader.v2Scores.alphaScore.toFixed(1)}</span></div>
+                    <div className="flex justify-between"><span>Risk:</span><span className="font-mono text-zinc-300">{trader.v2Scores.riskScore.toFixed(1)}</span></div>
+                    <div className="flex justify-between"><span>Behavior:</span><span className="font-mono text-zinc-300">{trader.v2Scores.behaviorScore.toFixed(1)}</span></div>
+                    <div className="flex justify-between col-span-2 mt-0.5 pt-0.5 border-t border-dashed border-zinc-900">
+                      <span>Confidence:</span><span className="font-mono text-zinc-300">{trader.v2Scores.confidenceScore.toFixed(1)}</span></div>
+                  </div>
+                  <div className="text-[10px] text-zinc-500 font-mono bg-zinc-900/50 p-1.5 rounded leading-normal">
+                    PMI = 0.30×Pred + 0.25×Alpha + 0.20×Risk + 0.15×Behav + 0.10×Conf
+                  </div>
+                </div>
+              </div>
 
-        {/* ── SECTION 3: DEX KEY METRICS OVERVIEW ─────────────────────────── */}
+              {/* Forecast Engine 📊 */}
+              <div className="rounded-2xl border border-cyan-800/50 bg-zinc-950 p-6 flex flex-col justify-between relative overflow-hidden group hover:border-cyan-700/50 transition">
+                <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-cyan-500/5 blur-xl pointer-events-none" />
+                <div>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Forecast Engine</h3>
+                      <p className="text-xs text-zinc-500 font-mono mt-0.5">Brier + LogLoss + Calibration</p>
+                    </div>
+                    <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-xs font-semibold text-cyan-400 border border-cyan-500/20">📊</span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-4">
+                    <span className="text-4xl font-extrabold text-cyan-400 tracking-tight">{trader.v2Scores.forecastBrier.toFixed(3)}</span>
+                    <span className="text-zinc-500 text-sm font-mono">Brier</span>
+                  </div>
+                </div>
+                <div className="mt-5 pt-3 border-t border-zinc-900 space-y-2">
+                  <div className="grid grid-cols-1 gap-y-1 text-xs text-zinc-400">
+                    <div className="flex justify-between"><span>Log Loss:</span><span className="font-mono text-zinc-300">{trader.v2Scores.forecastLogLoss.toFixed(3)}</span></div>
+                    <div className="flex justify-between"><span>Calibration:</span><span className="font-mono text-zinc-300">{trader.v2Scores.forecastCalibration.toFixed(1)}%</span></div>
+                  </div>
+                  <div className="text-[10px] text-zinc-500 font-mono bg-zinc-900/50 p-1.5 rounded leading-normal">
+                    Brier: lower=better (0=perfect). LogLoss: lower=better. Calibration: higher=better.
+                  </div>
+                </div>
+              </div>
+
+              {/* Alpha Engine ⚡ */}
+              <div className="rounded-2xl border border-amber-800/50 bg-zinc-950 p-6 flex flex-col justify-between relative overflow-hidden group hover:border-amber-700/50 transition">
+                <div className="absolute top-0 right-0 h-24 w-24 rounded-full bg-amber-500/5 blur-xl pointer-events-none" />
+                <div>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Alpha Engine</h3>
+                      <p className="text-xs text-zinc-500 font-mono mt-0.5">Entry vs Market Movement</p>
+                    </div>
+                    <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-400 border border-amber-500/20">⚡ Alpha</span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-4">
+                    <span className="text-4xl font-extrabold text-amber-400 tracking-tight">{trader.v2Scores.alpha24h >= 0 ? '+' : ''}{trader.v2Scores.alpha24h.toFixed(3)}</span>
+                    <span className="text-zinc-500 text-sm font-mono">24h</span>
+                  </div>
+                </div>
+                <div className="mt-5 pt-3 border-t border-zinc-900 space-y-2">
+                  <div className="grid grid-cols-1 gap-y-1 text-xs text-zinc-400">
+                    <div className="flex justify-between"><span>Alpha 7d:</span><span className="font-mono text-zinc-300">{trader.v2Scores.alpha7d >= 0 ? '+' : ''}{trader.v2Scores.alpha7d.toFixed(3)}</span></div>
+                    <div className="flex justify-between"><span>Sector Alpha:</span><span className="font-mono text-zinc-300">{trader.v2Scores.sectorAlpha >= 0 ? '+' : ''}{trader.v2Scores.sectorAlpha.toFixed(3)}</span></div>
+                  </div>
+                  <div className="text-[10px] text-zinc-500 font-mono bg-zinc-900/50 p.1.5 rounded leading-normal">
+                    Alpha = FutureProb − EntryProb. Positive = entered before market moved.
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
             <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">ROI %</p>

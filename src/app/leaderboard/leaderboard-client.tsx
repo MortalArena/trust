@@ -77,10 +77,15 @@ const SUBCATEGORY_LABELS: Record<string, string> = {
 };
 
 const SORT_OPTIONS = [
-  { value: 'masterScore', label: 'Master Score ⚡' },
-  { value: 'winRate', label: 'Accuracy (PAR)' },
+  { value: 'masterScore', label: 'PMI Score 🚀' },
+  { value: 'v2Predictive', label: 'Predictive' },
+  { value: 'v2Alpha', label: 'Alpha' },
+  { value: 'v2Confidence', label: 'Confidence' },
+  { value: 'v2Behavior', label: 'Behavior' },
+  { value: 'v2Risk', label: 'Risk' },
+  { value: 'winRate', label: 'Accuracy' },
   { value: 'roi', label: 'ROI %' },
-  { value: 'totalTrades', label: 'Trades Count' },
+  { value: 'totalTrades', label: 'Trades' },
   { value: 'totalVolumeUsd', label: 'Volume' },
   { value: 'edgeScore', label: 'Edge Score' },
   { value: 'trustScore', label: 'Trust Score' },
@@ -250,6 +255,26 @@ export function LeaderboardClient() {
            valB = bScore;
            break;
          }
+         case 'v2Predictive':
+           valA = (a as any).predictiveScore || 0;
+           valB = (b as any).predictiveScore || 0;
+           break;
+         case 'v2Alpha':
+           valA = (a as any).alphaScore || 0;
+           valB = (b as any).alphaScore || 0;
+           break;
+         case 'v2Confidence':
+           valA = (a as any).confidenceScore || 0;
+           valB = (b as any).confidenceScore || 0;
+           break;
+         case 'v2Behavior':
+           valA = (a as any).behaviorScore || 0;
+           valB = (b as any).behaviorScore || 0;
+           break;
+         case 'v2Risk':
+           valA = (a as any).riskScore || 0;
+           valB = (b as any).riskScore || 0;
+           break;
         case 'accuracy':
           valA = a.trader.winRate || 0;
           valB = b.trader.winRate || 0;
@@ -457,6 +482,9 @@ export function LeaderboardClient() {
                   <th className="px-3 py-2.5 font-semibold select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('trader')}>
                     Superforecaster Identity {renderSortIndicator('trader')}
                   </th>
+                  <th className="px-2 py-2.5 font-semibold text-center select-none" style={{ width: 40 }}>
+                    V2
+                  </th>
                   <th className="px-2 py-2.5 font-semibold text-right select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('masterScore')}>
                     PMI Score {renderSortIndicator('masterScore')}
                   </th>
@@ -564,6 +592,15 @@ export function LeaderboardClient() {
                             </div>
                           </div>
                         </Link>
+                      </td>
+
+                      {/* V2 Indicator */}
+                      <td className="px-2 py-1.5 text-center">
+                        {(entry.masterPMI && entry.masterPMI > 0) ? (
+                          <span className="inline-block h-2 w-2 rounded-full bg-violet-400 shadow-[0_0_4px_rgba(139,92,246,0.6)]" title="V2 Scored" />
+                        ) : (
+                          <span className="inline-block h-2 w-2 rounded-full bg-zinc-700" title="V1 Only" />
+                        )}
                       </td>
 
                       {/* PMI Score Column (V2 Master Score) */}
