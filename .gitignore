@@ -43,5 +43,5 @@ next-env.d.ts
 .vercel
 .env*
 
-# Database backup (contains sensitive data)
-db-backup.json
+# Database backup (use Git LFS)
+# db-backup.json
