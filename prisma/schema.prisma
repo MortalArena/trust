@@ -399,8 +399,8 @@ model PolymarketTrader {
   pseudonym      String?
   verifiedBadge  Boolean  @default(false)
   xUsername      String?
-  
-  // 📊 Computed trust metrics
+
+  // Legacy V1 scores
   trustScore     Decimal  @default(0)
   edgeScore      Decimal  @default(0)
   winRate        Decimal  @default(0)
@@ -412,23 +412,39 @@ model PolymarketTrader {
   avgTradeSize   Decimal  @default(0)
   totalVolumeUsd Decimal  @default(0)
   timingScore    Decimal  @default(50)
-  
-  // 📈 Stats
+
+  // V2 Reputation Engine scores
+  predictiveScore     Decimal  @default(0)
+  alphaScore          Decimal  @default(0)
+  behaviorScore       Decimal  @default(0)
+  confidenceScore     Decimal  @default(0)
+  riskScore           Decimal  @default(0)
+  masterPMI           Decimal  @default(0)
+
+  forecastBrier       Decimal  @default(0)
+  forecastLogLoss     Decimal  @default(0)
+  forecastCalibration Decimal  @default(0)
+  alpha24h            Decimal  @default(0)
+  alpha7d             Decimal  @default(0)
+  sectorAlpha         Decimal  @default(0)
+
   totalTrades    Int      @default(0)
   activityDays   Int      @default(0)
-  
-  // 🏷️ Categories this trader is active in
   categories     String[] @default([])
-  
-  // ⏰ Sync tracking
+
   lastSyncedAt   DateTime @default(now())
   createdAt      DateTime @default(now())
+
+  trades     PolymarketTrade[]
+  positions  PolymarketPosition[]
 
   @@index([trustScore])
   @@index([edgeScore])
   @@index([roi])
   @@index([categories])
   @@index([lastSyncedAt])
+  @@index([masterPMI])
+  @@index([predictiveScore])
 }
 
 /// Precomputed ranking boards (refreshed by cron — site reads from cache)
@@ -443,4 +459,89 @@ model IntelligenceRanking {
   @@unique([board, categorySlug])
   @@index([board])
   @@index([computedAt])
+}
+
+/// ── Reputation Engine V2 ──
+/// Raw trade data from Polymarket Data API
+model PolymarketTrade {
+  id           String   @id @default(cuid())
+  traderId     String
+  trader       PolymarketTrader @relation(fields: [traderId], references: [id], onDelete: Cascade)
+
+  marketId       String
+  conditionId    String
+  marketTitle    String?
+  category       String?
+
+  side           String
+  outcome        String
+  price          Decimal
+  shares         Decimal
+  valueUsd       Decimal
+  feeUsd         Decimal?
+
+  entryProbability Decimal?
+
+  timestamp      DateTime
+  closedAt       DateTime?
+
+  createdAt      DateTime @default(now())
+
+  @@unique([traderId, marketId, conditionId, timestamp, side, outcome])
+  @@index([traderId, timestamp])
+  @@index([marketId])
+  @@index([category])
+}
+
+/// Open/closed positions snapshot
+model PolymarketPosition {
+  id              String   @id @default(cuid())
+  traderId        String
+  trader          PolymarketTrader @relation(fields: [traderId], references: [id], onDelete: Cascade)
+
+  marketId        String
+  marketTitle     String?
+  outcome         String
+  avgEntry        Decimal
+  currentProbability Decimal
+  quantity        Decimal
+  unrealizedPnL   Decimal
+  realizedPnL     Decimal
+  openedAt        DateTime
+  closedAt        DateTime?
+
+  @@index([traderId, closedAt])
+  @@index([marketId])
+}
+
+/// Market probability snapshots over time
+model MarketSnapshot {
+  id           String   @id @default(cuid())
+  marketId     String
+  conditionId  String
+  probability  Decimal
+  liquidity    Decimal
+  volume       Decimal
+  timestamp    DateTime
+
+  @@index([marketId, timestamp])
+  @@index([timestamp])
+}
+
+/// Historical metric snapshots per trader
+model TraderMetricHistory {
+  id              String   @id @default(cuid())
+  traderId        String
+  date            DateTime @default(now())
+  totalTrades     Int
+  totalVolume     Decimal
+  roi             Decimal
+  winRate         Decimal
+  maxDrawdown     Decimal
+  predictiveScore Decimal
+  alphaScore      Decimal
+  masterPMI       Decimal
+
+  @@unique([traderId, date])
+  @@index([traderId, date])
 }
