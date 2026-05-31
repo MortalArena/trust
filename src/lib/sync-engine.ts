@@ -33,15 +33,19 @@ export function startEngine() {
       const now = Date.now();
       const discoveryInterval = 5 * 60 * 1000; // 5 minutes
 
-      // Phase 1: Discover new traders (every 5 min)
+      // Phase 1: Discover new traders (every 15 min — reduced frequency)
       if (now - lastDiscoveryAt > discoveryInterval) {
         logger.info('Engine: Discovering new traders...');
-        const discovery = await discoverAndImportFast(300);
-        logger.info(discovery, 'Engine: Discovery complete');
+        try {
+          const discovery = await discoverAndImportFast(50); // reduced from 300
+          logger.info(discovery, 'Engine: Discovery complete');
+        } catch (e) {
+          logger.warn({ e }, 'Engine: Discovery failed');
+        }
         lastDiscoveryAt = now;
       }
 
-      // Phase 2: Sync stale traders (every 60 sec, batch of 30)
+      // Phase 2: Sync stale traders (every 60 sec, batch of 3 — reduced to avoid rate limits)
       const staleThreshold = Date.now() - 30 * 60 * 1000; // 30 min
       const stale = await prisma.polymarketTrader.findMany({
         where: {
@@ -50,20 +54,22 @@ export function startEngine() {
             { totalTrades: 0 },
           ],
         },
-        take: 30,
+        take: 5,
         orderBy: { lastSyncedAt: 'asc' },
       });
 
       if (stale.length > 0) {
         let synced = 0;
-        for (let i = 0; i < stale.length; i += 5) {
-          const batch = stale.slice(i, i + 5);
+        for (let i = 0; i < stale.length; i += 1) {
+          const batch = stale.slice(i, i + 1);
           const results = await Promise.allSettled(
             batch.map((t) => syncPolymarketTrader(t.proxyWallet, t.categories))
           );
           for (const r of results) {
             if (r.status === 'fulfilled' && r.value) synced++;
           }
+          // 2 second delay between each sync to avoid rate limiting
+          if (i < stale.length - 1) await new Promise(r => setTimeout(r, 2000));
         }
         logger.info({ attempted: stale.length, synced }, 'Engine: Trader sync batch complete');
       }

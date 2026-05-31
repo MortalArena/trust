@@ -135,41 +135,42 @@ export function LeaderboardClient() {
       const json: LeaderboardPage = await res.json();
 
       // Use V2 Reputation Engine scores from API
+      // masterPMI is the primary ranking score from the reputation engine
       const enrichedEntries = (json.entries || []).map((entry) => {
         const t = entry.trader;
+
+        // V2 scores from reputation engine (calculated server-side)
+        const v2 = (entry as any).v2 || {};
+        const predictiveScore = Number(v2.predictiveScore) || 0;
+        const alphaScore = Number(v2.alphaScore) || 0;
+        const confidenceScore = Number(v2.confidenceScore) || 0;
+        const behaviorScore = Number(v2.behaviorScore) || 0;
+        const riskScore = Number(v2.riskScore) || 0;
+        const masterPMI = Number(v2.masterPMI) || 0;
+
+        // Legacy master score (V1 formula, kept for backward compat)
         const accuracy = t.winRate || 0;
         const roiVal = t.roi || 0;
         const trades = t.totalTrades || 0;
-
-        // V2 scores from reputation engine
-        const v2 = (entry as any).v2 || {};
-        const predictiveScore = v2.predictiveScore || 0;
-        const alphaScore = v2.alphaScore || 0;
-        const confidenceScore = v2.confidenceScore || 0;
-        const behaviorScore = v2.behaviorScore || 0;
-        const riskScore = v2.riskScore || 0;
-        const masterPMI = v2.masterPMI || 0;
-
-        // Legacy master score (kept for backward compat)
         const masterScore = (accuracy * 0.50) + (roiVal * 0.30) + (trades * 0.20);
 
-        // Derive consistent stable weekly momentum indicator using wallet address digits
+        // Momentum from wallet address digits (deterministic)
         const lastChar = t.proxyWallet.slice(-1);
         const lastDigit = parseInt(lastChar, 16);
-        const momentum = isNaN(lastDigit) ? 0 : (lastDigit % 7) - 3; // range: -3 to +3
+        const momentum = isNaN(lastDigit) ? 0 : (lastDigit % 7) - 3;
 
-        // Compute estimated Net PnL in USD: Volume * ROI %
+        // Net PnL
         const pnl = t.totalVolumeUsd * (roiVal / 100);
 
         return {
           ...entry,
           masterScore,
+          masterPMI,
           predictiveScore,
           alphaScore,
           confidenceScore,
           behaviorScore,
           riskScore,
-          masterPMI,
           momentum,
           pnl,
         };
@@ -241,10 +242,14 @@ export function LeaderboardClient() {
           valA = a.trader.displayName || a.trader.pseudonym || 'Anonymous';
           valB = b.trader.displayName || b.trader.pseudonym || 'Anonymous';
           break;
-        case 'masterScore':
-          valA = a.masterScore || 0;
-          valB = b.masterScore || 0;
-          break;
+         case 'masterScore': {
+           // Use V2 masterPMI if available, fall back to legacy masterScore
+           const aScore = (a.masterPMI && a.masterPMI > 0) ? a.masterPMI : (a.masterScore || 0);
+           const bScore = (b.masterPMI && b.masterPMI > 0) ? b.masterPMI : (b.masterScore || 0);
+           valA = aScore;
+           valB = bScore;
+           break;
+         }
         case 'accuracy':
           valA = a.trader.winRate || 0;
           valB = b.trader.winRate || 0;
@@ -297,10 +302,12 @@ export function LeaderboardClient() {
           THE BOARD // PRO TRADER RANKINGS
         </h1>
         <p className="mt-1.5 max-w-3xl text-[10px] text-zinc-500 leading-relaxed">
-          Aggregated wallet directory ranking traders based on predictive merit. Master Score blends{' '}
-          <span className="font-bold text-white">Accuracy Rate (50%)</span>,{' '}
-          <span className="font-bold text-white">ROI % (30%)</span>, and{' '}
-          <span className="font-bold text-white">Total Trades (20%)</span>. Ranks represent empirical foresight, filtered by category.
+          V2 Reputation Engine ranking traders on predictive skill. PMI blends{' '}
+          <span className="font-bold text-white">Predictive Accuracy (30%)</span>,{' '}
+          <span className="font-bold text-white">Alpha Generation (25%)</span>,{' '}
+          <span className="font-bold text-white">Risk Management (20%)</span>,{' '}
+          <span className="font-bold text-white">Behavior (15%)</span>,{' '}
+          <span className="font-bold text-white">Confidence (10%)</span>. Real-time Polymarket data.
         </p>
         {data && (
           <p className="mt-2 text-[9px] font-bold text-zinc-600">
@@ -451,25 +458,22 @@ export function LeaderboardClient() {
                     Superforecaster Identity {renderSortIndicator('trader')}
                   </th>
                   <th className="px-2 py-2.5 font-semibold text-right select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('masterScore')}>
-                    Master Score {renderSortIndicator('masterScore')}
+                    PMI Score {renderSortIndicator('masterScore')}
                   </th>
                   <th className="px-2 py-2.5 font-semibold text-right select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('accuracy')}>
-                    Accuracy (PAR) {renderSortIndicator('accuracy')}
+                    Accuracy {renderSortIndicator('accuracy')}
                   </th>
                   <th className="px-2 py-2.5 font-semibold text-right select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('roi')}>
                     ROI % {renderSortIndicator('roi')}
                   </th>
-                  <th className="px-2 py-2.5 font-semibold text-right select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('pnl')}>
-                    Est Net PnL {renderSortIndicator('pnl')}
+                  <th className="px-2 py-2.5 font-semibold text-right select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('trades')}>
+                    Trades {renderSortIndicator('trades')}
                   </th>
                   <th className="px-2 py-2.5 font-semibold text-right select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('volume')}>
-                    Volume Traded {renderSortIndicator('volume')}
-                  </th>
-                  <th className="px-2 py-2.5 font-semibold text-right select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('trades')}>
-                    Settled {renderSortIndicator('trades')}
+                    Volume {renderSortIndicator('volume')}
                   </th>
                   <th className="px-2 py-2.5 font-semibold text-center select-none cursor-pointer hover:text-white" onClick={() => handleSortClick('momentum')} style={{ width: 70 }}>
-                    Momentum {renderSortIndicator('momentum')}
+                    Signal {renderSortIndicator('momentum')}
                   </th>
                 </tr>
               </thead>
@@ -562,16 +566,15 @@ export function LeaderboardClient() {
                         </Link>
                       </td>
 
-                      {/* Master Score Column */}
+                      {/* PMI Score Column (V2 Master Score) */}
                       <td className="px-2 py-1.5 text-right font-black text-white text-[11px] tabular-nums">
-                        {score.toFixed(1)}
+                        {(entry.masterPMI || score).toFixed(1)}
                       </td>
 
-                      {/* Accuracy Column (PAR) */}
+                      {/* Accuracy Column */}
                       <td className="px-2 py-1.5 text-right font-bold text-slate-200 tabular-nums">
                         <div className="inline-flex flex-col items-end">
                           <span className="font-black text-slate-100">{t.winRate.toFixed(0)}%</span>
-                          {/* Bi-directional Win/Loss micro progress bar */}
                           <div className="flex h-1 overflow-hidden rounded bg-zinc-900 mt-0.5" style={{ width: 44 }}>
                             <div className="h-full bg-emerald-500 shadow-[0_0_3px_#10b981]" style={{ width: `${winRatePct}%` }} />
                             <div className="h-full bg-red-500 shadow-[0_0_3px_#ef4444]" style={{ width: `${lossRatePct}%` }} />
@@ -584,29 +587,24 @@ export function LeaderboardClient() {
                         {t.roi >= 0 ? '+' : ''}{t.roi.toFixed(1)}%
                       </td>
 
-                      {/* Net Profit Loss Column */}
-                      <td className="px-2 py-1.5 text-right font-black tabular-nums" style={{ color: clsC(pnlVal) }}>
-                        {pnlVal >= 0 ? '+' : ''}{fmtN(pnlVal)}
-                      </td>
-
-                      {/* Total Volume Column */}
-                      <td className="px-2 py-1.5 text-right text-zinc-400 tabular-nums">
-                        {fmtN(t.totalVolumeUsd)}
-                      </td>
-
-                      {/* Trades Settled Column */}
+                      {/* Trades Column */}
                       <td className="px-2 py-1.5 text-right text-zinc-400 tabular-nums">
                         {t.totalTrades.toLocaleString()}
                       </td>
 
-                      {/* Weekly Momentum Indicator */}
+                      {/* Volume Column */}
+                      <td className="px-2 py-1.5 text-right text-zinc-400 tabular-nums">
+                        {fmtN(t.totalVolumeUsd)}
+                      </td>
+
+                      {/* Signal Column */}
                       <td className="px-2 py-1.5 text-center font-bold">
                         {mom > 0 ? (
-                          <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black text-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.06)]">
+                          <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-black text-emerald-400">
                             ↑ {mom}
                           </span>
                         ) : mom < 0 ? (
-                          <span className="rounded bg-red-500/10 px-1.5 py-0.5 text-[9px] font-black text-red-400 shadow-[0_0_6px_rgba(239,68,68,0.06)]">
+                          <span className="rounded bg-red-500/10 px-1.5 py-0.5 text-[9px] font-black text-red-400">
                             ↓ {Math.abs(mom)}
                           </span>
                         ) : (
