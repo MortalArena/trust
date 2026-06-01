@@ -3,12 +3,18 @@ import { fetchAllActiveMarkets } from '@/lib/polymarket/full-fetcher';
 
 export const dynamic = 'force-dynamic';
 
+// In-memory cache (30s TTL)
+let cache: { data: any[]; timestamp: number } | null = null;
+const CACHE_TTL = 30_000;
+
 interface OutMarket {
   id: string; question: string; yes_price: number; no_price: number;
   volume_24h: number; liquidity: number; txns: number; mcap: number;
   price_change_5m: number; price_change_1h: number; price_change_6h: number; price_change_24h: number;
   age_hours: number; traders: number; category: string;
   image_url: string|null; platform: string; url: string;
+  conditionId?: string;
+  slug?: string;
 }
 
 export async function GET(req: NextRequest) {
@@ -16,15 +22,28 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const reqCategory = url.searchParams.get('cat') || 'all';
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
-    const pageSize = Math.min(500, parseInt(url.searchParams.get('limit') || '200'));
+    const pageSize = Math.min(200, parseInt(url.searchParams.get('limit') || '100'));
     const search = (url.searchParams.get('search') || '').trim().toLowerCase();
     const marketId = url.searchParams.get('id') || null;
-    const maxPages = parseInt(url.searchParams.get('maxPages') || '50');
 
-    // If specific market requested
+    let allMarkets: OutMarket[] = [];
+
+    // Check cache for common requests
+    if (!search && !marketId && reqCategory === 'all' && page === 1 && cache && (Date.now() - cache.timestamp) < CACHE_TTL) {
+      allMarkets = cache.data;
+    } else {
+      allMarkets = await fetchAllActiveMarkets(
+        reqCategory !== 'all' ? reqCategory : undefined,
+        50
+      );
+      if (!search && !marketId && reqCategory === 'all') {
+        cache = { data: allMarkets, timestamp: Date.now() };
+      }
+    }
+
+    // Filter by marketId
     if (marketId) {
-      const all = await fetchAllActiveMarkets(undefined, 100);
-      const found = all.find(m => m.id === marketId || m.slug === marketId);
+      const found = allMarkets.find(m => m.id === marketId || m.slug === marketId);
       if (found) {
         return NextResponse.json({
           markets: [found], total: 1, page: 1, pageSize: 1,
@@ -32,58 +51,37 @@ export async function GET(req: NextRequest) {
           updated_at: new Date().toISOString(),
         });
       }
-      return NextResponse.json(
-        { markets: [], total: 0, page: 1, pageSize, total_pages: 0, categories: {}, platforms: {}, updated_at: new Date().toISOString() },
-        { status: 404 }
-      );
     }
 
-    // Fetch ALL markets
-    console.log(`[Live API] Fetching markets: cat=${reqCategory}, maxPages=${maxPages}`);
-    const allMarkets = await fetchAllActiveMarkets(
-      reqCategory !== 'all' ? reqCategory : undefined,
-      maxPages
-    );
-    console.log(`[Live API] Fetched ${allMarkets.length} markets`);
-
-    // Apply search filter
+    // Apply filters
     let filtered = allMarkets;
     if (search) {
       filtered = allMarkets.filter((m) =>
         m.question.toLowerCase().includes(search) ||
-        m.category.toLowerCase().includes(search) ||
-        m.id.toLowerCase().includes(search)
+        m.category.toLowerCase().includes(search)
       );
+    } else if (reqCategory !== 'all') {
+      filtered = allMarkets.filter(m => m.category === reqCategory);
     }
 
-    // Sort by volume desc
     filtered.sort((a, b) => b.volume_24h - a.volume_24h);
 
-    // Paginate
     const total = filtered.length;
     const start = (page - 1) * pageSize;
     const paginated = filtered.slice(start, start + pageSize);
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-    // Category counts
-    const catCounts: Record<string, number> = {};
-    for (const m of allMarkets) {
-      const c = m.category || 'general';
-      catCounts[c] = (catCounts[c] || 0) + 1;
-    }
 
     return NextResponse.json({
       markets: paginated,
       total,
       page,
       pageSize,
-      total_pages: totalPages,
-      categories: catCounts,
+      total_pages: Math.max(1, Math.ceil(total / pageSize)),
+      categories: {},
       platforms: { polymarket: allMarkets.length },
       updated_at: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Live API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch markets' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch markets', markets: [] }, { status: 500 });
   }
 }

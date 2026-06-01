@@ -1,74 +1,158 @@
-import Link from 'next/link';
-import { PageShell } from '@/components/ui/page-shell';
-import { prisma } from '@/lib/db';
-import { CreateBotForm } from '@/components/create-bot-form';
+'use client';
 
-export const dynamic = 'force-dynamic';
+import { useState } from 'react';
+import { BOT_MARKETPLACE, BOT_CATEGORIES, type BotDefinition } from '@/lib/bots/marketplace';
 
-export default async function BotsPage() {
-  const bots = await prisma.expertBot.findMany({
-    where: { isPublic: true },
-    orderBy: { createdAt: 'desc' },
-    take: 30,
-    include: {
-      expert: { select: { displayName: true, walletAddress: true, expertServiceTypes: true } },
-    },
-  });
+export default function BotMarketplacePage() {
+  const [category, setCategory] = useState('all');
+  const [selectedBot, setSelectedBot] = useState<BotDefinition | null>(null);
+  const [installedBots, setInstalledBots] = useState<string[]>([]);
+
+  const bots = category === 'all' ? BOT_MARKETPLACE : BOT_MARKETPLACE.filter(b => b.category === category);
+
+  const handleInstall = (botId: string) => {
+    setInstalledBots(prev => [...prev, botId]);
+    setSelectedBot(null);
+  };
 
   return (
-    <PageShell showCategoryNav={false}>
-      <h1 className="mb-2 text-2xl font-bold text-[var(--text-primary)]">Expert bots marketplace</h1>
-      <p className="mb-8 max-w-2xl text-[var(--text-secondary)]">
-        Bots experts sell, rent, or teach — trading automation, alerts, and quant tools.
-      </p>
+    <div className="min-h-screen bg-[#030712] text-white">
+      <header className="sticky top-0 z-50 border-b border-[#111827] bg-[#030712]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-3">
+          <h1 className="text-lg font-black"><span className="text-blue-400">NICHE</span>TRUST</h1>
+          <nav className="flex items-center gap-1">
+            {['Markets', 'Leaderboard', 'Groups', 'Bots', 'Learn'].map(l => (
+              <a key={l} href={`/${l.toLowerCase()}`} className="rounded px-2 py-1 text-[11px] font-bold text-zinc-400 hover:text-white transition-colors">{l}</a>
+            ))}
+          </nav>
+        </div>
+      </header>
 
-      <div className="mb-10 grid gap-4 lg:grid-cols-2">
-        {bots.map((b) => (
-          <div
-            key={b.id}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
-          >
-            <div className="flex justify-between gap-2">
-              <h2 className="font-semibold text-[var(--text-primary)]">{b.name}</h2>
-              <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                {b.pricingModel}
-              </span>
+      <main className="mx-auto max-w-[1400px] px-4 py-6">
+        <div className="mb-6">
+          <h2 className="text-xl font-black text-white">🤖 Bot Marketplace</h2>
+          <p className="mt-1 text-xs text-zinc-500">Professional bots for copy trading, alerts, analysis, and risk management</p>
+        </div>
+
+        {/* Categories */}
+        <div className="mb-6 flex gap-2 flex-wrap">
+          {BOT_CATEGORIES.map(c => (
+            <button
+              key={c.id}
+              onClick={() => setCategory(c.id)}
+              className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
+                category === c.id ? 'bg-blue-600 text-white' : 'bg-[#0b1120] border border-[#1f2937] text-zinc-400 hover:text-white'
+              }`}
+            >
+              {c.icon} {c.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Bot Grid */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {bots.map(bot => (
+            <div key={bot.id} className="rounded-2xl border border-[#111827] bg-[#0b1120] p-5 hover:border-zinc-700 transition-colors">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-800 text-2xl">{bot.icon}</div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">{bot.name}</h3>
+                    <div className="text-[10px] text-zinc-500">{bot.description.slice(0, 60)}...</div>
+                  </div>
+                </div>
+                <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${bot.price === 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                  {bot.price === 0 ? 'FREE' : `$${bot.price}/mo`}
+                </span>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-1">
+                {bot.features.slice(0, 3).map((f, i) => (
+                  <span key={i} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[8px] text-zinc-400">{f.slice(0, 30)}</span>
+                ))}
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => setSelectedBot(bot)}
+                  className="flex-1 rounded-lg border border-zinc-700 px-3 py-2 text-[10px] font-bold text-zinc-400 hover:text-white transition-colors"
+                >
+                  Details
+                </button>
+                <button
+                  onClick={() => handleInstall(bot.id)}
+                  disabled={installedBots.includes(bot.id)}
+                  className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {installedBots.includes(bot.id) ? '✓ Installed' : 'Install'}
+                </button>
+              </div>
             </div>
-            {b.description && (
-              <p className="mt-2 line-clamp-3 text-sm text-[var(--text-secondary)]">{b.description}</p>
-            )}
-            <p className="mt-3 text-xs text-[var(--text-muted)]">
-              by {b.expert.displayName ?? b.expert.walletAddress?.slice(0, 10)}…
-              {b.priceUsd != null && Number(b.priceUsd) > 0 && (
-                <span className="ml-2 font-semibold text-blue-600">${Number(b.priceUsd)}</span>
-              )}
-            </p>
-            {b.externalUrl && (
-              <a
-                href={b.externalUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-block text-sm font-medium text-blue-600 hover:underline"
+          ))}
+        </div>
+      </main>
+
+      {/* Bot Detail Modal */}
+      {selectedBot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0b1120] p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-800 text-3xl">{selectedBot.icon}</div>
+                <div>
+                  <h3 className="text-lg font-black text-white">{selectedBot.name}</h3>
+                  <div className="text-xs text-zinc-500">{selectedBot.description}</div>
+                </div>
+              </div>
+              <button onClick={() => setSelectedBot(null)} className="text-zinc-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <span className={`rounded px-2 py-1 text-xs font-bold ${selectedBot.price === 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                {selectedBot.price === 0 ? 'FREE' : `$${selectedBot.price}/month`}
+              </span>
+              <span className="rounded bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 capitalize">{selectedBot.category.replace('_', ' ')}</span>
+            </div>
+
+            <div className="mt-4">
+              <h4 className="text-xs font-bold text-white mb-2">Features</h4>
+              <div className="space-y-1.5">
+                {selectedBot.features.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-zinc-400">
+                    <span className="text-emerald-400">✓</span> {f}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <h4 className="text-xs font-bold text-white mb-2">Configuration</h4>
+              <div className="space-y-2">
+                {selectedBot.configSchema.map(field => (
+                  <div key={field.key} className="rounded-lg border border-zinc-800 p-3">
+                    <div className="text-[10px] font-bold text-white">{field.label}</div>
+                    <div className="text-[9px] text-zinc-500">{field.description}</div>
+                    <div className="mt-1 text-[10px] text-blue-400">Default: {String(field.default)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button onClick={() => setSelectedBot(null)} className="flex-1 rounded-lg border border-zinc-700 px-4 py-2.5 text-xs font-bold text-zinc-400 hover:text-white transition-colors">
+                Close
+              </button>
+              <button
+                onClick={() => handleInstall(selectedBot.id)}
+                disabled={installedBots.includes(selectedBot.id)}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
-                View bot →
-              </a>
-            )}
+                {installedBots.includes(selectedBot.id) ? '✓ Installed' : `Install ${selectedBot.price === 0 ? 'Free' : `$${selectedBot.price}/mo`}`}
+              </button>
+            </div>
           </div>
-        ))}
-      </div>
-
-      {bots.length === 0 && (
-        <p className="mb-8 text-[var(--text-muted)]">No bots listed yet. Experts can add one below.</p>
+        </div>
       )}
-
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-6">
-        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">List your bot (experts)</h2>
-        <CreateBotForm />
-      </section>
-
-      <Link href="/developers" className="mt-8 inline-block text-sm text-blue-600 hover:underline">
-        Connect your AI agent →
-      </Link>
-    </PageShell>
+    </div>
   );
 }
