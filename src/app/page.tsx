@@ -117,6 +117,7 @@ export default function HomePage() {
             </Link>
             <nav className="hidden items-center gap-1 md:flex">
               {[
+                { label: 'Dashboard', href: '/dashboard' },
                 { label: 'Markets', href: '/' },
                 { label: 'Leaderboard', href: '/leaderboard' },
                 { label: 'Groups', href: '/groups' },

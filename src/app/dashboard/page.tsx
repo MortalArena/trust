@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { AIChatWidget } from '@/components/ai-chat-widget';
 
 // ── Types ────────────────────────────────────────────────────
 interface FeedItem {
@@ -524,6 +525,9 @@ export default function CommandCenterPage() {
           </div>
         )}
       </main>
+
+      {/* AI Chat Widget */}
+      <AIChatWidget />
     </div>
   );
 }
