@@ -382,6 +382,10 @@ export async function getLeaderboard(options?: {
         behaviorScore: true, riskScore: true, masterPMI: true,
         forecastBrier: true, forecastLogLoss: true, forecastCalibration: true,
         alpha24h: true, alpha7d: true, sectorAlpha: true,
+        smartScore: true, insiderScore: true, stealthScore: true,
+        convictionIndex: true, sharpeRatio: true, sortinoRatio: true,
+        calmarRatio: true, maxDrawdown: true, kellyCriterion: true,
+        whaleTier: true, returnRating: true, flags: true,
       },
     }),
   ]);
@@ -428,6 +432,19 @@ export async function getLeaderboard(options?: {
       behaviorScore: Number(t.behaviorScore) || 0,
       riskScore: Number(t.riskScore) || 0,
       masterPMI: Number(t.masterPMI) || 0,
+      // V3 Advanced Scores
+      smartScore: Number(t.smartScore) || 0,
+      insiderScore: Number(t.insiderScore) || 0,
+      stealthScore: Number(t.stealthScore) || 0,
+      convictionIndex: Number(t.convictionIndex) || 0,
+      sharpeRatio: Number(t.sharpeRatio) || 0,
+      sortinoRatio: Number(t.sortinoRatio) || 0,
+      calmarRatio: Number(t.calmarRatio) || 0,
+      maxDrawdown: Number(t.maxDrawdown) || 0,
+      kellyCriterion: Number(t.kellyCriterion) || 0,
+      whaleTier: t.whaleTier || 'PLANKTON',
+      returnRating: t.returnRating || 'D',
+      flags: t.flags || {},
     },
   }));
 
